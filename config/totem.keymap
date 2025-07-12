@@ -4,3 +4,7 @@
 #include "../miryoku/custom_config.h"
 #include "../miryoku/mapping/38/totem.h"
 #include "../miryoku/miryoku.dtsi"
+
+&kscan0 {
+  wakeup-source;
+};
