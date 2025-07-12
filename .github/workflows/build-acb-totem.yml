@@ -1,0 +1,14 @@
+name: "Build Adam's Totem"
+on: workflow_dispatch
+jobs:
+  build:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["seeeduino_xiao_ble"]'
+      shield: '["totem_left", "totem_right", "totem_dongle", "settings_reset"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y"]'
