@@ -12,3 +12,4 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y"]'
+      branches: '["eg0n/zmk-config-totem-dongle/main"]'
