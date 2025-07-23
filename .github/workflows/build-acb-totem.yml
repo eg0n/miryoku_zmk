@@ -12,4 +12,4 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y"]'
-      modules: '["caksoylar/zmk-rgbled-widget/main janpfischer/zmk-dongle-screen/lightsensor"]'
+      modules: '["caksoylar/zmk-rgbled-widget/main eg0n/zmk-dongle-screen/lightsensor"]'
