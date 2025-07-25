@@ -29,7 +29,7 @@ MIRYOKU_SHIFT_FUNCTION(u_caps_word, &caps_word, &kp CAPS)
 
 #if defined (MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS)
 
-MIRYOKU_SHIFT_FUNCTION(u_rgb_tog, &rgb_ug RGB_TOG, &rgb_ug RGB_OFF)
+MIRYOKU_SHIFT_FUNCTION(u_rgb_tog, &kp F22, &kp F22)
 
 MIRYOKU_SHIFT_FUNCTION(u_rgb_eff, &rgb_ug RGB_EFF, &rgb_ug RGB_EFR)
 MIRYOKU_SHIFT_FUNCTION(u_rgb_hui, &rgb_ug RGB_HUI, &rgb_ug RGB_HUD)
