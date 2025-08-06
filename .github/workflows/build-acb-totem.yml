@@ -6,11 +6,10 @@ jobs:
     secrets: inherit
     with:
       board: '["seeeduino_xiao_ble"]'
-      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "totem_dongle dongle_screen", "settings_reset"]'
+      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "totem_dongle dongle_screen rgbled_adapter", "settings_reset"]'
       alphas: '["colemak"]'
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
-      kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y"]'
-      modules: '["caksoylar/zmk-rgbled-widget/main eg0n/zmk-dongle-screen/lightsensor"]'
+      modules: '["eg0n/zmk-totem-dongle/main"]'
       custom_config: '["#define MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS"]'
