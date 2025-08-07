@@ -11,5 +11,6 @@ jobs:
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
-      modules: '["eg0n/zmk-totem-dongle/main"]'
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/zmk-dongle-screen/lightsensor"]'
       custom_config: '["#define MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS"]'
+      kconfig: '["CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_HIGH=50"]'

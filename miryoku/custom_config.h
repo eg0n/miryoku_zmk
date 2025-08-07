@@ -1,7 +1,7 @@
 // Copyright 2021 Manna Harbour
 // https://github.com/manna-harbour/miryoku
 
-#if defined MIRYOKU_KEYBOARD_TOTEM
+#if defined (MIRYOKU_KEYBOARD_TOTEM)
 #include <behaviors/rgbled_widget.dtsi>
 #define MIRYOKU_LAYERMAPPING_BASE(\
      K00, K01, K02, K03, K04,      K05, K06, K07, K08, K09, \
