@@ -14,3 +14,4 @@ jobs:
       branches: '["eg0n/zmk/totem"]'
       modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/v0.3.0 eg0n/zmk-dongle-screen/lightsensor"]'
       kconfig: '["CONFIG_RGBLED_WIDGET_BATTERY_LEVEL_HIGH=50"]'
+      custom_config: '["#define MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS\n#define RGBLED_WIDGET\n"]'
