@@ -12,4 +12,5 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y\nCONFIG_ZMK_DISPLAY=y\nCONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM=y\nCONFIG_NICE_VIEW_GEM_ANIMATION_MS=4800"]'
-      modules: '["M165437/nice-view-gem/main"]'
+      branches: '["zmkfirmware/zmk/v0.3-branch"]'
+      modules: '["M165437/nice-view-gem/v0.3.0"]'
