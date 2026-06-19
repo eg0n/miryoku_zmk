@@ -75,7 +75,7 @@ jobs:
       MIRYOKU_DEBUG: ${{ secrets.MIRYOKU_DEBUG }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: 'miryoku_zmk'
       - name: main
@@ -306,7 +306,7 @@ jobs:
           echo "::endgroup::"
       - name: cache
         if: true
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             zmk/modules/
@@ -379,7 +379,7 @@ jobs:
           test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config" "${{ steps.main.outputs.artifact_dir }}"
           echo "::endgroup::"
       - name: upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifact-${{ matrix.shield }}
           path: ${{ steps.main.outputs.artifact_dir }}
@@ -389,7 +389,7 @@ jobs:
     name: Merge Output Artifacts
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
+        uses: actions/upload-artifact/merge@v7
         with:
           name: ${{ inputs.archive_name }}
           pattern: artifact-*
