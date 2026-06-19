@@ -19,7 +19,7 @@ on:
         default: '["default"]'
       tap:
         type: string
-        default: '["default"]'  
+        default: '["default"]'
       nav:
         type: string
         default: '["default"]'
@@ -32,7 +32,7 @@ on:
       mapping:
         type: string
         default: '["default"]'
-      custom_config:
+      dts_extra_cppflags:
         type: string
         default: '["default"]'
       kconfig:
@@ -67,7 +67,7 @@ jobs:
         clipboard: ${{ fromJSON(inputs.clipboard) }}
         layers: ${{ fromJSON(inputs.layers) }}
         mapping: ${{ fromJSON(inputs.mapping) }}
-        custom_config: ${{ fromJSON(inputs.custom_config) }}
+        dts_extra_cppflags: ${{ fromJSON(inputs.dts_extra_cppflags) }}
         kconfig: ${{ fromJSON(inputs.kconfig) }}
         branches: ${{ fromJSON(inputs.branches) }}
         modules: ${{ fromJSON(inputs.modules) }}
@@ -82,7 +82,7 @@ jobs:
         id: main
         run: |
           test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && set -x
-          
+
           echo "::group::variables"
 
           if [ -n "${{ matrix.shield }}" -a "${{ matrix.shield }}" != "default" ]
@@ -98,14 +98,10 @@ jobs:
           keyboard_split="$keyboard"
           keyboard_base=`echo "$keyboard" | sed -e 's/_\(left\|right\|dongle\)//' -e 's/@.*//'`
 
-          configfile="${GITHUB_WORKSPACE}/miryoku_zmk/miryoku/custom_config.h"
+          # Build DTS_EXTRA_CPPFLAGS as a semicolon-separated list of -DNAME flags
+          # instead of writing #define lines into custom_config.h
 
-          tmpfile="$configfile.tmp"
-          echo -n '#define ' > "$tmpfile"
-          echo -n "MIRYOKU_KEYBOARD_$keyboard_base" | tr  -c '[:alnum:]' '_' | tr '[:lower:]' '[:upper:]' >> "$tmpfile"
-          echo >> "$tmpfile"
-          cat "$configfile" >> "$tmpfile"
-          mv "$tmpfile" "$configfile"
+          dts_flags="-DMIRYOKU_KEYBOARD_"`echo -n "$keyboard_base" | tr -c '[:alnum:]' '_' | tr '[:lower:]' '[:upper:]'`
 
           run_name="miryoku_zmk"
           if [ -n "${{ matrix.shield }}" -a "${{ matrix.shield }}" != 'default' ]
@@ -116,10 +112,15 @@ jobs:
 
           hash_length=8
 
-          if [ -n "${{ matrix.custom_config }}" -a "${{ matrix.custom_config }}" != 'default' ]
+          if [ -n "${{ matrix.dts_extra_cppflags }}" -a "${{ matrix.dts_extra_cppflags }}" != 'default' ]
           then
-            echo "${{ matrix.custom_config }}" >> "$configfile"
-            run_name="$run_name config_"`echo "${{ matrix.custom_config }}" | md5sum | head -c "$hash_length"`
+            # dts_extra_cppflags is a space-separated list of bare define names, e.g. "RGBLED_WIDGET FOO=BAR"
+            # Use read with IFS to split correctly since GitHub Actions expands the matrix value as one string
+            for flag in $(echo "${{ matrix.dts_extra_cppflags }}")
+            do
+              dts_flags="$dts_flags;-D$flag"
+            done
+            run_name="$run_name dts_"`echo "${{ matrix.dts_extra_cppflags }}" | md5sum | head -c "$hash_length"`
           fi
 
           for option in "alphas_${{ matrix.alphas }}" "extra_${{ matrix.extra }}" "tap_${{ matrix.tap }}" "nav_${{ matrix.nav }}" "clipboard_${{ matrix.clipboard }}" "layers_${{ matrix.layers }}" "mapping_${{ matrix.mapping }}"
@@ -129,17 +130,23 @@ jobs:
               *_default ) ;;
               * )
                 run_name="$run_name $option"
-                echo "#define MIRYOKU_"`echo "$option" | tr 'a-z' 'A-Z'` >> "$configfile"
+                flag="-DMIRYOKU_"`echo "$option" | tr 'a-z' 'A-Z'`
+                dts_flags="$dts_flags;$flag"
                 ;;
             esac
           done
+
+          if [ -n "$dts_flags" ]
+          then
+            echo "dts_flags_arg=-DDTS_EXTRA_CPPFLAGS=\"$dts_flags\"" >> $GITHUB_OUTPUT
+          fi
 
           artifact_dir="${GITHUB_WORKSPACE}/artifacts"
           echo "artifact_dir=$artifact_dir" >> $GITHUB_OUTPUT
           mkdir "$artifact_dir"
 
-          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "$configfile" "$artifact_dir"
-          
+          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && echo "$dts_flags" > "$artifact_dir/dts_flags.txt"
+
           if [ -n "${{ matrix.kconfig }}" -a "${{ matrix.kconfig }}" != 'default' ]
           then
             kconfig_file="${GITHUB_WORKSPACE}/miryoku_zmk/config/$keyboard_split.conf"
@@ -176,9 +183,9 @@ jobs:
           clipboard: '${{ matrix.clipboard }}'
           layers: '${{ matrix.layers }}'
           mapping: '${{ matrix.mapping }}'
-          custom_config: '${{ matrix.custom_config }}'
+          dts_extra_cppflags: '${{ matrix.dts_extra_cppflags }}'
           kconfig: '${{ matrix.kconfig }}'
-          branches: '${{ matrix.branches }}'  
+          branches: '${{ matrix.branches }}'
           modules: '${{ matrix.modules }}'
           " > "$matrix_file"
           cat "$matrix_file"
@@ -274,7 +281,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::modules"
-          for module in $modules 
+          for module in $modules
           do
             user=`echo "$module" | cut -f 1 -d '/'`
             repo=`echo "$module" | cut -f 2 -d '/'`
@@ -330,7 +337,7 @@ jobs:
           EX_DATAERR='65'
           cd "${GITHUB_WORKSPACE}/zmk/app"
           {
-            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" ||
+            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} ${{ steps.main.outputs.dts_flags_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" ||
             echo "$build_failed_message $?." ;
           } 2>&1 | tee "$log"
           if grep -q 'Invalid BOARD; see above.' "$log"
