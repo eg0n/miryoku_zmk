@@ -13,15 +13,19 @@ jobs:
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
-      # Upstream ZMK, not eg0n/zmk: the fork defines its own
-      # zmk_caps_word_state_changed event and prospector ships an identical one,
-      # so the two collide at link time. Prospector supplies its own caps-word,
-      # modifier and brightness handling, so nothing from the fork is needed here.
-      branches: '["zmkfirmware/zmk/main"]'
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main carrefinho/prospector-zmk-module/feat/new-status-screens"]'
-      # No DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS: that pulls in the zmk-dongle-screen
-      # &ds_bl behavior, which is not present in a prospector build.
-      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
-      # Swap for RADII / FIELD / OPERATOR to try a different screen.
-      kconfig: '["CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y"]'
+      branches: '["eg0n/zmk/totem-4.1"]'
+      # NOTE: prospector points at a fork. feat/new-status-screens-backlight adds
+      # two things on top of carrefinho's branch:
+      #   - routes the ambient-light thread through ZMK's backlight subsystem, so
+      #     &bl BL_TOG can turn the screen off and idle auto-off works
+      #   - a PROSPECTOR_PROVIDE_CAPS_WORD_EVENT switch (below)
+      # Push that branch to eg0n/prospector-zmk-module before running this.
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/new-status-screens-backlight"]'
+      # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, the prospector
+      # equivalent of DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS' &ds_bl DS_BL_TOG.
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'
+      # PROVIDE_CAPS_WORD_EVENT=n because eg0n/zmk already defines
+      # zmk_caps_word_state_changed; leaving both in place collides at link time.
+      # Screen layout: swap CLASSIC for RADII / FIELD / OPERATOR.
+      kconfig: '["CONFIG_PROSPECTOR_PROVIDE_CAPS_WORD_EVENT=n\nCONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y"]'
       archive_name: 'firmware-prospector'

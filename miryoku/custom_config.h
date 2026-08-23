@@ -25,6 +25,20 @@
     IND_CON  K20  K21  K22  K23  K24       K25  K26  K27  K28  K29  IND_BAT \
                        K32  K33  K34       K35  K36  K37
 
+// ── Backlight behaviors (Prospector) ─────────────────────────────────────
+// Enable by passing dts_extra_cppflags: BACKLIGHT_BEHAVIORS
+// Uses ZMK's native backlight behavior, which the prospector_adapter shield
+// wires to the panel backlight. Mutually exclusive with
+// DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS below -- both rebind MIRYOKU_LAYER_MEDIA.
+#if defined (BACKLIGHT_BEHAVIORS)
+#include <dt-bindings/zmk/backlight.h>
+#define MIRYOKU_LAYER_MEDIA \
+U_BOOT,            &u_to_U_TAP,       &u_to_U_EXTRA,     &u_to_U_BASE,      U_NA,              &bl BL_TOG,        U_RGB_EFF,         U_RGB_HUI,         U_RGB_SAI,         U_RGB_BRI,         \
+&kp LGUI,          &kp LALT,          &kp LCTRL,         &kp LSHFT,         U_NA,              U_EP_TOG,          &kp C_PREV,        &kp C_VOL_DN,      &kp C_VOL_UP,      &kp C_NEXT,        \
+U_NA,              &kp RALT,          &u_to_U_FUN,       &u_to_U_MEDIA,     U_NA,              &u_out_tog,        &u_bt_sel_0,       &u_bt_sel_1,       &u_bt_sel_2,       &u_bt_sel_3,       \
+U_NP,              U_NP,              U_NA,              U_NA,              U_NA,              &kp C_STOP,        &kp C_PP,          &kp C_MUTE,        U_NP,              U_NP
+#endif
+
 // ── Dongle screen brightness behaviors ───────────────────────────────────
 // Enable by passing dts_extra_cppflags: DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS
 // in the GitHub Actions workflow dispatch.
