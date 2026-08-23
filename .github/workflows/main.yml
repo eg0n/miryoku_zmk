@@ -49,12 +49,17 @@ on:
         default: "firmware"
         required: false
         type: string
+      container_image:
+        description: "Toolchain image; must match the Zephyr version of the ZMK branch being built"
+        default: "zmkfirmware/zmk-build-arm:4.1-branch"
+        required: false
+        type: string
 
 jobs:
   main:
     runs-on: ubuntu-latest
     container:
-      image: zmkfirmware/zmk-build-arm:3.5-branch
+      image: ${{ inputs.container_image }}
     strategy:
       fail-fast: false
       matrix:
