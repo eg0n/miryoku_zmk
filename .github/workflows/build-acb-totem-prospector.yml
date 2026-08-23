@@ -1,0 +1,27 @@
+name: "Build Adam's Totem (Prospector screens)"
+on: workflow_dispatch
+jobs:
+  build:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
+      # Dongle only: the left/right/settings_reset firmware is identical to
+      # build-acb-totem, so only the dongle needs reflashing to try these screens.
+      shield: '["totem_dongle prospector_adapter"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      # Upstream ZMK, not eg0n/zmk: the fork defines its own
+      # zmk_caps_word_state_changed event and prospector ships an identical one,
+      # so the two collide at link time. Prospector supplies its own caps-word,
+      # modifier and brightness handling, so nothing from the fork is needed here.
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main carrefinho/prospector-zmk-module/feat/new-status-screens"]'
+      # No DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS: that pulls in the zmk-dongle-screen
+      # &ds_bl behavior, which is not present in a prospector build.
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      # Swap for RADII / FIELD / OPERATOR to try a different screen.
+      kconfig: '["CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y"]'
+      archive_name: 'firmware-prospector'
