@@ -20,8 +20,8 @@ jobs:
       artifact_prefix: 'acb-base'
       merge: false
 
-  # One dongle image per Prospector screen layout. The layouts are the four on
-  # carrefinho's feat/new-status-screens; everything else about these builds is
+  # One dongle image per Prospector screen layout: carrefinho's four, plus the
+  # Crystal layout from our fork. Everything else about these builds is
   # identical, so the kconfig entries carry a "label|" prefix to keep their
   # output filenames and artifact names distinct.
   dongle:
@@ -41,8 +41,9 @@ jobs:
       #     &bl BL_TOG can turn the screen off and idle auto-off works
       #   - a PROSPECTOR_PROVIDE_CAPS_WORD_EVENT switch, unused here but needed
       #     if this build ever moves back onto eg0n/zmk
-      # Push that branch to eg0n/prospector-zmk-module before running this.
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/new-status-screens-backlight"]'
+      # feat/crystal-layout builds on that branch and adds the Crystal layout,
+      # the zmk-dongle-screen design ported into prospector's framework.
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/crystal-layout"]'
       # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, the prospector
       # equivalent of DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS' &ds_bl DS_BL_TOG.
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'
@@ -53,12 +54,13 @@ jobs:
         "classic|CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y",
         "radii|CONFIG_PROSPECTOR_STATUS_SCREEN_RADII=y",
         "field|CONFIG_PROSPECTOR_STATUS_SCREEN_FIELD=y",
-        "operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y"
+        "operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y",
+        "crystal|CONFIG_PROSPECTOR_STATUS_SCREEN_CRYSTAL=y"
         ]'
       artifact_prefix: 'acb-dongle'
       merge: false
 
-  # Both calls above leave their artifacts in place; collect all seven here so
+  # Both calls above leave their artifacts in place; collect all eight here so
   # the run produces a single downloadable archive.
   merge:
     runs-on: ubuntu-latest
