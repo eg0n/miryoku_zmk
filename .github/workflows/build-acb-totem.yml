@@ -6,11 +6,11 @@ jobs:
     secrets: inherit
     with:
       board: '["xiao_ble//zmk"]'
-      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "totem_dongle dongle_screen", "settings_reset"]'
+      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "settings_reset"]'
       alphas: '["colemak"]'
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
-      branches: '["eg0n/zmk/totem-4.1"]'
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/zmk-dongle-screen/lightsensor"]'
-      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
