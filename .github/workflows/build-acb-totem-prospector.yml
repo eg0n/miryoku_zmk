@@ -1,13 +1,34 @@
 name: "Build Adam's Totem (Prospector screens)"
 on: workflow_dispatch
 jobs:
-  build:
+  # The halves and the settings_reset image do not depend on the dongle screen,
+  # so they build once against plain upstream ZMK, exactly as build-acb-totem
+  # does. They are included here so one dispatch yields a complete flashable set.
+  base:
     uses: ./.github/workflows/main.yml
     secrets: inherit
     with:
       board: '["xiao_ble//zmk"]'
-      # Dongle only: the left/right/settings_reset firmware is identical to
-      # build-acb-totem, so only the dongle needs reflashing to try these screens.
+      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "settings_reset"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      artifact_prefix: 'acb-base'
+      merge: false
+
+  # One dongle image per Prospector screen layout. The layouts are the four on
+  # carrefinho's feat/new-status-screens; everything else about these builds is
+  # identical, so the kconfig entries carry a "label|" prefix to keep their
+  # output filenames and artifact names distinct.
+  dongle:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
       shield: '["totem_dongle prospector_adapter"]'
       alphas: '["colemak"]'
       clipboard: '["mac"]'
@@ -28,6 +49,25 @@ jobs:
       # Upstream ZMK has no caps-word event, so prospector supplies its own
       # (PROVIDE_CAPS_WORD_EVENT defaults to y). Set it to n only when building
       # against eg0n/zmk, which defines the same event and would collide.
-      # Screen layout: swap CLASSIC for RADII / FIELD / OPERATOR.
-      kconfig: '["CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y"]'
-      archive_name: 'firmware-prospector'
+      kconfig: '[
+        "classic|CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y",
+        "radii|CONFIG_PROSPECTOR_STATUS_SCREEN_RADII=y",
+        "field|CONFIG_PROSPECTOR_STATUS_SCREEN_FIELD=y",
+        "operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y"
+        ]'
+      artifact_prefix: 'acb-dongle'
+      merge: false
+
+  # Both calls above leave their artifacts in place; collect all seven here so
+  # the run produces a single downloadable archive.
+  merge:
+    runs-on: ubuntu-latest
+    needs: [base, dongle]
+    name: Merge Output Artifacts
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v7
+        with:
+          name: firmware-prospector
+          pattern: acb-*
+          delete-merged: true
