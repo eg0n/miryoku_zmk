@@ -5,14 +5,12 @@ jobs:
     uses: ./.github/workflows/main.yml
     secrets: inherit
     with:
-      board: '["nice_nano_v2"]'
+      board: '["nice_nano//zmk"]'
       shield: '["corne_left nice_view_adapter nice_view_gem","corne_right nice_view_adapter nice_view_gem"]'
       alphas: '["colemak"]'
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
       kconfig: '["CONFIG_ZMK_SLEEP=y\nCONFIG_ZMK_POINTING=y\nCONFIG_ZMK_DISPLAY=y\nCONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM=y\nCONFIG_NICE_VIEW_GEM_ANIMATION_MS=4800"]'
-      branches: '["zmkfirmware/zmk/v0.3-branch"]'
-      modules: '["M165437/nice-view-gem/v0.3.0"]'
-      # Pinned to ZMK v0.3, which is Zephyr 3.5; keep the matching toolchain.
-      container_image: 'zmkfirmware/zmk-build-arm:3.5-branch'
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["M165437/nice-view-gem/main"]'
