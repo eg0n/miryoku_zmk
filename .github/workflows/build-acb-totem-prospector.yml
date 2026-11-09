@@ -35,15 +35,10 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       branches: '["zmkfirmware/zmk/main"]'
-      # NOTE: prospector points at a fork. feat/new-status-screens-backlight adds
-      # two things on top of carrefinho's branch:
-      #   - routes the ambient-light thread through ZMK's backlight subsystem, so
-      #     &bl BL_TOG can turn the screen off and idle auto-off works
-      #   - a PROSPECTOR_PROVIDE_CAPS_WORD_EVENT switch, unused here but needed
-      #     if this build ever moves back onto eg0n/zmk
-      # feat/crystal-layout builds on that branch and adds the Crystal layout,
-      # the zmk-dongle-screen design ported into prospector's framework.
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/crystal-layout"]'
+      # Our prospector fork: carrefinho's new-status-screens plus &bl BL_TOG
+      # screen-off, a caps-word event switch, the Crystal layout, peripheral
+      # status fixes and zmk-split-esb support (inert in BLE builds).
+      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/esb-split"]'
       # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, the prospector
       # equivalent of DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS' &ds_bl DS_BL_TOG.
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'
