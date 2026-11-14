@@ -1,0 +1,12 @@
+/* Some nRF52840 Dongle clones (Raytac's) lack the DC/DC inductors the Nordic PCA10059 has, and
+ * its board turns both DC/DC stages on, leaving such a dongle unpowered once the bootloader hands
+ * over. The LDOs work on either; a USB-powered dongle doesn't miss the DC/DC's efficiency. */
+#include <zephyr/dt-bindings/regulator/nrf5x.h>
+
+&reg0 {
+    status = "disabled";
+};
+
+&reg1 {
+    regulator-initial-mode = <NRF5X_REG_MODE_LDO>;
+};

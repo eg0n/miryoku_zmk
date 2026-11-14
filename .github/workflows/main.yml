@@ -64,6 +64,11 @@ on:
         default: "zmkfirmware/zmk-build-arm:4.1-branch"
         required: false
         type: string
+      cmake_args:
+        description: "Extra CMake arguments for every build, e.g. -DEXTRA_CONF_FILE=... from a module's checkout under ${GITHUB_WORKSPACE}/modules"
+        default: ""
+        required: false
+        type: string
 
 jobs:
   main:
@@ -373,7 +378,7 @@ jobs:
           EX_DATAERR='65'
           cd "${GITHUB_WORKSPACE}/zmk/app"
           {
-            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} ${{ steps.main.outputs.dts_flags_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" ||
+            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} ${{ steps.main.outputs.dts_flags_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" ${{ inputs.cmake_args }} ||
             echo "$build_failed_message $?." ;
           } 2>&1 | tee "$log"
           if grep -q 'Invalid BOARD; see above.' "$log"
@@ -403,15 +408,30 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::copy"
-          for extension in 'uf2' 'bin' 'hex' 'elf'
-          do
-            file="${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.$extension"
-            if [ -f "$file" ]
+          output="${{ steps.main.outputs.artifact_dir }}/${{ steps.main.outputs.artifact_name }}"
+          if grep -q '^CONFIG_BOARD_HAS_NRF5_BOOTLOADER=y' "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config"
+          then
+            # Nordic's nRF5 bootloader (the nRF52840 Dongle) takes a DFU package, not a UF2.
+            if ! command -v nrfutil > /dev/null
             then
-              cp "$file" "${{ steps.main.outputs.artifact_dir }}/${{ steps.main.outputs.artifact_name }}.$extension"
-              test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' || break
+              # The build image has Python for west, but no curl.
+              python3 -c 'import urllib.request; urllib.request.urlretrieve("https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-unknown-linux-gnu/nrfutil", "/usr/local/bin/nrfutil")'
+              chmod +x /usr/local/bin/nrfutil
+              nrfutil install nrf5sdk-tools
             fi
-          done
+            cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.hex" "$output.hex"
+            nrfutil nrf5sdk-tools pkg generate --hw-version 52 --sd-req 0x00 --application-version 1 --application "$output.hex" "$output.zip"
+          else
+            for extension in 'uf2' 'bin' 'hex' 'elf'
+            do
+              file="${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.$extension"
+              if [ -f "$file" ]
+              then
+                cp "$file" "$output.$extension"
+                test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' || break
+              fi
+            done
+          fi
           test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config" "${{ steps.main.outputs.artifact_dir }}"
           echo "::endgroup::"
       - name: upload

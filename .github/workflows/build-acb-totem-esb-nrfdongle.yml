@@ -1,0 +1,93 @@
+name: "Build Adam's Totem (ESB, nRF52840 Dongle)"
+on: workflow_dispatch
+jobs:
+  # The Totem split over ESB (eg0n/zmk-split-esb), with a Nordic nRF52840 Dongle
+  # or a clone as the dongle; it has no screen. Each part's ESB settings come
+  # from the module's own conf/, which its local scripts/build.sh uses too.
+  left:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
+      shield: '["totem_left rgbled_adapter"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      # Our rgbled-widget fork blinks the ESB link status on the halves.
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_left.conf'
+      artifact_prefix: 'acb-esb-left'
+      merge: false
+
+  right:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
+      shield: '["totem_right rgbled_adapter"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_right.conf'
+      artifact_prefix: 'acb-esb-right'
+      merge: false
+
+  # Comes out as a .hex and a DFU .zip for the dongle's Nordic bootloader. Raytac's
+  # clone needs config/nrf52840dongle.overlay, which ZMK applies to this board.
+  dongle:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["nrf52840dongle//zmk"]'
+      shield: '["totem_dongle"]'
+      alphas: '["colemak"]'
+      clipboard: '["mac"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.conf -DEXTRA_DTC_OVERLAY_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.overlay'
+      artifact_prefix: 'acb-esb-dongle'
+      merge: false
+
+  # Both settings resets share the shield's artifact name, so each gets its own
+  # call and prefix; the XIAO's is a .uf2, the dongle's a .hex and .zip.
+  reset-xiao:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
+      shield: '["settings_reset"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      artifact_prefix: 'acb-esb-reset-xiao'
+      merge: false
+
+  reset-nrfdongle:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["nrf52840dongle//zmk"]'
+      shield: '["settings_reset"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      artifact_prefix: 'acb-esb-reset-nrfdongle'
+      merge: false
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: [left, right, dongle, reset-xiao, reset-nrfdongle]
+    name: Merge Output Artifacts
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v7
+        with:
+          name: firmware-esb-nrfdongle
+          pattern: acb-esb-*
+          delete-merged: true
