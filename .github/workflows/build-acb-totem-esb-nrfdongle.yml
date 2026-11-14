@@ -16,7 +16,7 @@ jobs:
       tap: '["colemak"]'
       branches: '["zmkfirmware/zmk/main"]'
       # Our rgbled-widget fork blinks the ESB link status on the halves.
-      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
       cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_left.conf'
       artifact_prefix: 'acb-esb-left'
@@ -33,7 +33,7 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       branches: '["zmkfirmware/zmk/main"]'
-      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
       cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_right.conf'
       artifact_prefix: 'acb-esb-right'
@@ -54,7 +54,7 @@ jobs:
       tap: '["colemak"]'
       # Upstream ZMK with rolling WPM and the caps-word event merged in, for KeyBeacon.
       branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
-      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/zmk-keybeacon/feat/dongle-usb"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/zmk-keybeacon/feat/dongle-usb"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
       # Quoted: the two conf files are a ;-separated list.
       cmake_args: '"-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.conf;${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_nrfdongle.conf" -DEXTRA_DTC_OVERLAY_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.overlay'

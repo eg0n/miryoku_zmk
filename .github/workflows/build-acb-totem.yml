@@ -12,5 +12,5 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       branches: '["zmkfirmware/zmk/main"]'
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main"]'
+      modules: '["caksoylar/zmk-rgbled-widget/main"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'

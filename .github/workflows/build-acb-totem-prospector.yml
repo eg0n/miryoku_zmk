@@ -15,7 +15,7 @@ jobs:
       extra: '["qwerty"]'
       tap: '["colemak"]'
       branches: '["zmkfirmware/zmk/main"]'
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main"]'
+      modules: '["caksoylar/zmk-rgbled-widget/main"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
       artifact_prefix: 'acb-base'
       merge: false
@@ -38,7 +38,7 @@ jobs:
       # Our prospector fork: carrefinho's new-status-screens plus &bl BL_TOG
       # screen-off, a caps-word event switch, the Crystal layout, peripheral
       # status fixes and zmk-split-esb support (inert in BLE builds).
-      modules: '["eg0n/zmk-totem-dongle/main caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/esb-split"]'
+      modules: '["caksoylar/zmk-rgbled-widget/main eg0n/prospector-zmk-module/feat/esb-split"]'
       # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, the prospector
       # equivalent of DONGLE_SCREEN_BRIGHTNESS_BEHAVIORS' &ds_bl DS_BL_TOG.
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'

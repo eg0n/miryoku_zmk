@@ -1,0 +1,22 @@
+/*
+ * Copyright (c) 2024 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include "totem.dtsi"
+
+/delete-node/ &kscan0;
+
+/ {
+    mock_kscan: mock_kscan_0 {
+        compatible = "zmk,kscan-mock";
+        columns = <0>;
+        rows = <0>;
+        events = <0>;
+    };
+
+    chosen {
+        zmk,kscan = &mock_kscan;
+    };
+};
