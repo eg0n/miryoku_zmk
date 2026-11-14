@@ -40,7 +40,8 @@ jobs:
       merge: false
 
   # Comes out as a .hex and a DFU .zip for the dongle's Nordic bootloader. Raytac's
-  # clone needs config/nrf52840dongle.overlay, which ZMK applies to this board.
+  # clone needs config/nrf52840dongle.overlay, which ZMK applies to this board. It also
+  # reports the keyboard to the KeyBeacon Mac app over USB (totem_nrfdongle.conf).
   dongle:
     uses: ./.github/workflows/main.yml
     secrets: inherit
@@ -51,10 +52,12 @@ jobs:
       clipboard: '["mac"]'
       extra: '["qwerty"]'
       tap: '["colemak"]'
-      branches: '["zmkfirmware/zmk/main"]'
-      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
+      # Upstream ZMK with rolling WPM and the caps-word event merged in, for KeyBeacon.
+      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-totem-dongle/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/zmk-keybeacon/feat/dongle-usb"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
-      cmake_args: '-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.conf -DEXTRA_DTC_OVERLAY_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.overlay'
+      # Quoted: the two conf files are a ;-separated list.
+      cmake_args: '"-DEXTRA_CONF_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.conf;${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_nrfdongle.conf" -DEXTRA_DTC_OVERLAY_FILE=${GITHUB_WORKSPACE}/modules/eg0n-zmk-split-esb-main/conf/totem_dongle.overlay'
       artifact_prefix: 'acb-esb-dongle'
       merge: false
 
@@ -80,9 +83,30 @@ jobs:
       artifact_prefix: 'acb-esb-reset-nrfdongle'
       merge: false
 
+  # The KeyBeacon menu-bar app that shows the dongle's reports: tested, then packaged as a
+  # .dmg and .zip (ad-hoc signed: open it with right-click → Open the first time).
+  app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eg0n/keybeacon
+          ref: feat/usb-hid
+      - name: Test
+        working-directory: app/macos
+        run: swift test
+      - name: Package
+        run: bash packaging/make-app.sh "$(git rev-parse --short HEAD)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acb-esb-app
+          path: |
+            dist/*.dmg
+            dist/*.zip
+
   merge:
     runs-on: ubuntu-latest
-    needs: [left, right, dongle, reset-xiao, reset-nrfdongle]
+    needs: [left, right, dongle, reset-xiao, reset-nrfdongle, app]
     name: Merge Output Artifacts
     steps:
       - name: Merge Artifacts
