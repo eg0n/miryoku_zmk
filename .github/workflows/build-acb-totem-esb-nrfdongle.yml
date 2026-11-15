@@ -86,7 +86,7 @@ jobs:
   # The KeyBeacon menu-bar app that shows the dongle's reports: tested, then packaged as a
   # .dmg and .zip (ad-hoc signed: open it with right-click → Open the first time).
   app:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
