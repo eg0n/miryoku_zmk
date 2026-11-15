@@ -23,7 +23,7 @@ jobs:
         "chocv",
         "clog_left","clog_right",
         "contra",
-        "corne_left","corne_right",
+        "corne_left nice_view_adapter nice_view","corne_right nice_view_adapter nice_view",
         "cradio_left","cradio_right",
         "crbn",
         "dactyl_manuform_4x5_left","dactyl_manuform_4x5_right",

@@ -18,4 +18,4 @@ jobs:
         "nrfmicro_13",
         "proton_c"
       ]'
-      shield: '["corne_left"]'
+      shield: '["corne_left nice_view_adapter nice_view"]'

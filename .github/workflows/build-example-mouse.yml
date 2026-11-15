@@ -9,5 +9,5 @@ jobs:
     secrets: inherit
     with:
       board: '["nice_nano"]'
-      shield: '["corne_left"]'
+      shield: '["corne_left nice_view_adapter nice_view"]'
       kconfig: '["CONFIG_ZMK_POINTING=y"]'
