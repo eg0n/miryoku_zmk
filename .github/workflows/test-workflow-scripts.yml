@@ -1,0 +1,14 @@
+name: 'Test Workflow Scripts'
+on:
+  push:
+    paths: ['.github/workflows/**']
+  pull_request:
+    paths: ['.github/workflows/**']
+  workflow_dispatch:
+jobs:
+  # The unit tests for main.yml's steps.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 -m unittest discover -s .github/workflows/scripts -v

@@ -82,22 +82,10 @@ jobs:
     steps:
       - name: Process inputs
         id: process-inputs
-        run: |
-          set-output()
-          {
-            json=`echo "$2" | jq -cnR 'inputs | split(",";"")'`
-            echo "$1=$json" >> $GITHUB_OUTPUT
-          }
-          set-output "board" "${{ github.event.inputs.board }}"
-          set-output "shield" "${{ github.event.inputs.shield }}"
-          set-output "alphas" "${{ github.event.inputs.alphas }}"
-          set-output "nav" "${{ github.event.inputs.nav }}"
-          set-output "layers" "${{ github.event.inputs.layers }}"
-          set-output "mapping" "${{ github.event.inputs.mapping }}"
-          set-output "custom_config" "${{ github.event.inputs.custom_config }}"
-          set-output "kconfig" "${{ github.event.inputs.kconfig }}"
-          set-output "branches" "${{ github.event.inputs.branches }}"
-          set-output "modules" "${{ github.event.inputs.modules }}"
+        env:
+          INPUTS: ${{ toJSON(inputs) }}
+        # Each input is a comma-separated list; main.yml takes JSON lists.
+        run: jq -r 'to_entries[] | "\(.key)=\(.value | split(",") | tojson)"' <<< "$INPUTS" >> "$GITHUB_OUTPUT"
   build:
     uses: ./.github/workflows/main.yml
     secrets: inherit

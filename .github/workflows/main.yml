@@ -1,6 +1,10 @@
 # Copyright 2021 Manna Harbour
 # https://github.com/manna-harbour/miryoku
 
+# Builds Miryoku firmware. Each input from board to modules is a JSON list in a string,
+# '["default"]' when unset, and one firmware is built for every combination of their values.
+# The steps themselves are in scripts/miryoku_build.py.
+
 name: 'Main'
 on:
   workflow_call:
@@ -9,6 +13,7 @@ on:
         type: string
         default: '["default"]'
       shield:
+        description: "One or more shields, separated by spaces; the first names the keyboard"
         type: string
         default: '["default"]'
       alphas:
@@ -33,6 +38,7 @@ on:
         type: string
         default: '["default"]'
       dts_extra_cppflags:
+        description: "Defines for the keymap, separated by spaces, e.g. 'RGBLED_WIDGET FOO=BAR'"
         type: string
         default: '["default"]'
       custom_config:
@@ -40,12 +46,15 @@ on:
         type: string
         default: '["default"]'
       kconfig:
+        description: "Kconfig lines for the keyboard's .conf. A leading 'label|' names the variant in the output files."
         type: string
         default: '["default"]'
       branches:
+        description: "ZMK as user/repo/branch, then any branches to merge into it, separated by spaces"
         type: string
         default: '["default"]'
       modules:
+        description: "ZMK modules as user/repo/branch, separated by spaces"
         type: string
         default: '["default"]'
       archive_name:
@@ -69,7 +78,7 @@ on:
         required: false
         type: string
       cmake_args:
-        description: "Extra CMake arguments for every build, e.g. -DEXTRA_CONF_FILE=... from a module's checkout under ${GITHUB_WORKSPACE}/modules"
+        description: "Extra CMake arguments for every build, written as on a command line, e.g. -DEXTRA_CONF_FILE=... from a module's checkout under ${GITHUB_WORKSPACE}/modules. ${MIRYOKU_KEYBOARD} is the build's first shield (or its board), e.g. totem_left."
         default: ""
         required: false
         type: string
@@ -98,327 +107,22 @@ jobs:
         modules: ${{ fromJSON(inputs.modules) }}
     env:
       MIRYOKU_DEBUG: ${{ secrets.MIRYOKU_DEBUG }}
+      # The script reads this build's matrix entry and the inputs from the environment, so
+      # that no value is pasted into shell text.
+      MATRIX: ${{ toJSON(matrix) }}
+      INPUTS: ${{ toJSON(inputs) }}
+      CMAKE_ARGS: ${{ inputs.cmake_args }}
+      PYTHONUNBUFFERED: '1'
     steps:
       - name: checkout
         uses: actions/checkout@v6
         with:
           path: 'miryoku_zmk'
-      - name: main
-        id: main
-        run: |
-          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && set -x
-
-          echo "::group::variables"
-
-          if [ -n "${{ matrix.shield }}" -a "${{ matrix.shield }}" != "default" ]
-          then
-            SHIELD_ARG="-DSHIELD=\"${{ matrix.shield }}\""
-            shield=`echo ${{ matrix.shield }} | cut -d ' ' -f 1`
-            keyboard="$shield"
-          else
-            keyboard=${{ matrix.board }}
-            shield=""
-          fi
-          echo "shield_arg=$SHIELD_ARG" >> $GITHUB_OUTPUT
-          keyboard_split="$keyboard"
-          keyboard_base=`echo "$keyboard" | sed -e 's/_\(left\|right\|dongle\)//' -e 's/@.*//'`
-
-          # Build DTS_EXTRA_CPPFLAGS as a semicolon-separated list of -DNAME flags
-          # instead of writing #define lines into custom_config.h
-
-          dts_flags="-DMIRYOKU_KEYBOARD_"`echo -n "$keyboard_base" | tr -c '[:alnum:]' '_' | tr '[:lower:]' '[:upper:]'`
-
-          run_name="miryoku_zmk"
-          if [ -n "${{ matrix.shield }}" -a "${{ matrix.shield }}" != 'default' ]
-          then
-            run_name="$run_name ${{ matrix.shield }}"
-          fi
-          run_name="$run_name ${{ matrix.board }}"
-
-          hash_length=8
-
-          if [ -n "${{ matrix.dts_extra_cppflags }}" -a "${{ matrix.dts_extra_cppflags }}" != 'default' ]
-          then
-            # dts_extra_cppflags is a space-separated list of bare define names, e.g. "RGBLED_WIDGET FOO=BAR"
-            # Use read with IFS to split correctly since GitHub Actions expands the matrix value as one string
-            for flag in $(echo "${{ matrix.dts_extra_cppflags }}")
-            do
-              dts_flags="$dts_flags;-D$flag"
-            done
-            run_name="$run_name dts_"`echo "${{ matrix.dts_extra_cppflags }}" | md5sum | head -c "$hash_length"`
-          fi
-
-          # Parts that tell this build's outputs from the rest of the matrix: one
-          # for each input that lists more than one value (see artifact_name).
-          name_parts=""
-
-          # custom_config is the older way to pass defines: lines of "#define NAME"
-          # or "#define NAME VALUE". Each becomes a -D flag; nothing else is kept.
-          custom_config="${{ matrix.custom_config }}"
-          if [ -n "$custom_config" -a "$custom_config" != 'default' ]
-          then
-            custom_flags=`printf '%s\n' "$custom_config" | sed -n -e 's/^[[:space:]]*#define[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*$/\1/p' -e 's/^[[:space:]]*#define[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]\{1,\}\([^[:space:];]\{1,\}\)[[:space:]]*$/\1=\2/p'`
-            if [ `printf '%s\n' "$custom_config" | grep -c '[^[:space:]]'` != `printf '%s\n' "$custom_flags" | grep -c .` ]
-            then
-              echo '::warning::custom_config takes only "#define NAME" and "#define NAME VALUE" lines (no spaces in VALUE); other lines were ignored.'
-            fi
-            for flag in $custom_flags
-            do
-              dts_flags="$dts_flags;-D$flag"
-            done
-            custom_hash=`printf '%s\n' "$custom_config" | md5sum | head -c "$hash_length"`
-            run_name="$run_name custom_$custom_hash"
-            if [ '${{ fromJSON(inputs.custom_config)[1] != null }}' = 'true' ]
-            then
-              name_parts="$name_parts custom_$custom_hash"
-            fi
-          fi
-          if [ '${{ fromJSON(inputs.dts_extra_cppflags)[1] != null }}' = 'true' ]
-          then
-            name_parts="$name_parts dts_"`echo "${{ matrix.dts_extra_cppflags }}" | md5sum | head -c "$hash_length"`
-          fi
-
-          for option in "alphas_${{ matrix.alphas }}" "extra_${{ matrix.extra }}" "tap_${{ matrix.tap }}" "nav_${{ matrix.nav }}" "clipboard_${{ matrix.clipboard }}" "layers_${{ matrix.layers }}" "mapping_${{ matrix.mapping }}"
-          do
-            case "$option" in
-              *_ ) ;;
-              *_default ) ;;
-              * )
-                run_name="$run_name $option"
-                flag="-DMIRYOKU_"`echo "$option" | tr 'a-z' 'A-Z'`
-                dts_flags="$dts_flags;$flag"
-                ;;
-            esac
-          done
-          for option in "${{ fromJSON(inputs.alphas)[1] != null }} alphas_${{ matrix.alphas }}" "${{ fromJSON(inputs.extra)[1] != null }} extra_${{ matrix.extra }}" "${{ fromJSON(inputs.tap)[1] != null }} tap_${{ matrix.tap }}" "${{ fromJSON(inputs.nav)[1] != null }} nav_${{ matrix.nav }}" "${{ fromJSON(inputs.clipboard)[1] != null }} clipboard_${{ matrix.clipboard }}" "${{ fromJSON(inputs.layers)[1] != null }} layers_${{ matrix.layers }}" "${{ fromJSON(inputs.mapping)[1] != null }} mapping_${{ matrix.mapping }}"
-          do
-            case "$option" in
-              'true '* ) name_parts="$name_parts ${option#true }" ;;
-            esac
-          done
-
-          if [ -n "$dts_flags" ]
-          then
-            echo "dts_flags_arg=-DDTS_EXTRA_CPPFLAGS=\"$dts_flags\"" >> $GITHUB_OUTPUT
-          fi
-
-          artifact_dir="${GITHUB_WORKSPACE}/artifacts"
-          echo "artifact_dir=$artifact_dir" >> $GITHUB_OUTPUT
-          mkdir "$artifact_dir"
-
-          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && echo "$dts_flags" > "$artifact_dir/dts_flags.txt"
-
-          # A kconfig entry may carry a leading "label|" to name the variant it
-          # builds, e.g. "classic|CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y".
-          # Without a label, several kconfig variants of one shield would all
-          # produce the same output filename and the same artifact name, and the
-          # upload would fail on the duplicate. Entries with no "|" behave as before.
-          kconfig="${{ matrix.kconfig }}"
-          variant=""
-          if [ -n "$kconfig" -a "$kconfig" != 'default' ]
-          then
-            case `printf '%s' "$kconfig" | head -n 1` in
-              *'|'* )
-                variant=`printf '%s' "$kconfig" | head -n 1 | cut -d '|' -f 1`
-                kconfig=`printf '%s\n' "$kconfig" | sed -e '1s/^[^|]*|//'`
-                ;;
-            esac
-            kconfig_file="${GITHUB_WORKSPACE}/miryoku_zmk/config/$keyboard_split.conf"
-            echo "$kconfig" >> "$kconfig_file"
-            test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "$kconfig_file" "$artifact_dir"
-            run_name="$run_name kconfig_"`echo "$kconfig" | md5sum | head -c "$hash_length"`
-          fi
-
-          if [ -z "$variant" -a '${{ fromJSON(inputs.kconfig)[1] != null }}' = 'true' ]
-          then
-            name_parts="$name_parts kconfig_"`echo "$kconfig" | md5sum | head -c "$hash_length"`
-          fi
-
-          if [ -n "${{ matrix.branches }}" -a "${{ matrix.branches }}" != 'default' ]
-          then
-            run_name="$run_name branches_"`echo "${{ matrix.branches }}" | md5sum | head -c "$hash_length"`
-            branches="${{ matrix.branches }}"
-          fi
-          if [ '${{ fromJSON(inputs.branches)[1] != null }}' = 'true' ]
-          then
-            name_parts="$name_parts branches_"`echo "${{ matrix.branches }}" | md5sum | head -c "$hash_length"`
-          fi
-          if [ -n "${{ matrix.modules }}" -a "${{ matrix.modules }}" != 'default' ]
-          then
-            run_name="$run_name modules_"`echo "${{ matrix.modules }}" | md5sum | head -c "$hash_length"`
-            modules="${{ matrix.modules }}"
-          fi
-          if [ '${{ fromJSON(inputs.modules)[1] != null }}' = 'true' ]
-          then
-            name_parts="$name_parts modules_"`echo "${{ matrix.modules }}" | md5sum | head -c "$hash_length"`
-          fi
-
-          # Name outputs after the shield (the board when there is none), plus the
-          # variant label when there is one. Every matrix job uploads its own
-          # artifact, so each input that lists several values adds its part too.
-          if [ -n "$shield" ]
-          then
-            artifact_name="${{ matrix.shield }}"
-            if [ '${{ fromJSON(inputs.board)[1] != null }}' = 'true' ]
-            then
-              artifact_name="$artifact_name-${{ matrix.board }}"
-            fi
-          else
-            artifact_name="${{ matrix.board }}"
-          fi
-          if [ -n "$variant" ]
-          then
-            artifact_name="$artifact_name-$variant"
-          fi
-          for part in $name_parts
-          do
-            artifact_name="$artifact_name-$part"
-          done
-          # Characters an artifact name can't hold, as in a board like nice_nano/nrf52840/zmk.
-          artifact_name=$(printf '%s' "$artifact_name" | tr '/:*?"<>|\\' '_')
-          echo "artifact_name=$artifact_name" >> $GITHUB_OUTPUT
-
-          run_name=`echo $run_name | tr ' ' '-'`
-          echo "run_name=$run_name" >> $GITHUB_OUTPUT
-
-          echo "::endgroup::"
-
-          echo "::group::matrix"
-          matrix_file="$artifact_dir/$artifact_name.matrix.txt"
-          echo "
-          board: '${{ matrix.board }}'
-          shield: '${{ matrix.shield }}'
-          alphas: '${{ matrix.alphas }}'
-          extra: '${{ matrix.extra }}'
-          tap: '${{ matrix.tap }}'
-          nav: '${{ matrix.nav }}'
-          clipboard: '${{ matrix.clipboard }}'
-          layers: '${{ matrix.layers }}'
-          mapping: '${{ matrix.mapping }}'
-          dts_extra_cppflags: '${{ matrix.dts_extra_cppflags }}'
-          custom_config: '${{ matrix.custom_config }}'
-          kconfig: '${{ matrix.kconfig }}'
-          branches: '${{ matrix.branches }}'
-          modules: '${{ matrix.modules }}'
-          " > "$matrix_file"
-          cat "$matrix_file"
-          echo "::endgroup::"
-
-          echo "::group::outboards"
-          if [ -n "$shield" ]
-          then
-            outboards="shields/$keyboard_base boards/${{ matrix.board }}"
-          else
-            outboards="boards/$keyboard_base"
-          fi
-          for outboard in $outboards
-          do
-            outboard_repository=''
-            outboard_ref=''
-            outboard_from=''
-            outboard_to=''
-            outboard_branches=''
-            outboard_modules=''
-            outboard_file="${GITHUB_WORKSPACE}/miryoku_zmk/.github/workflows/outboards/$outboard"
-            if [ -f "$outboard_file" ]
-            then
-              test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "$outboard_file" "$artifact_dir"
-              . "$outboard_file"
-              outboard_dir="${GITHUB_WORKSPACE}/$outboard"
-              if [ -n "$outboard_repository" -a -n "$outboard_ref" -a -n "$outboard_from" -a -n "$outboard_to" ]
-              then
-                if ! echo "$outboard_repository" | grep -q 'https:\/\/'
-                then
-                  outboard_repository="https://github.com/$outboard_repository.git"
-                fi
-                git clone -b "$outboard_ref" --depth 1 "$outboard_repository" "$outboard_dir"
-                to="${GITHUB_WORKSPACE}/miryoku_zmk/config/$outboard_to"
-                mkdir -p `dirname "$to"`
-                ln -sr "$outboard_dir/$outboard_from" "$to"
-              fi
-              if [ -n "$outboard_branches" ]
-              then
-                if [ -n "$branches" ]
-                then
-                  branches="$branches $outboard_branches"
-                else
-                  branches="$outboard_branches"
-                fi
-              fi
-              if [ -n "$outboard_modules" ]
-              then
-                if [ -n "$modules" ]
-                then
-                  modules="$modules $outboard_modules"
-                else
-                  modules="$outboard_modules"
-                fi
-              fi
-            fi
-          done
-          echo "::endgroup::"
-
-          echo "::group::zmk"
-          zmk=`echo "$branches" | cut -d ' ' -f 1`
-          if [ -z "$zmk" ]
-          then
-            zmk='zmkfirmware/zmk/main'
-          fi
-          user=`echo "$zmk" | cut -f 1 -d '/'`
-          repo=`echo "$zmk" | cut -f 2 -d '/'`
-          branch=`echo "$zmk" | cut -f 3- -d '/'`
-          git clone -b "$branch" --depth 1 "https://github.com/$user/$repo.git" 'zmk'
-          echo "::endgroup::"
-
-          echo "::group::merge"
-          merges=`echo "$branches" | cut -d ' ' -f 2- -s`
-          if [ -n "$merges" ]
-          then
-            cd "${GITHUB_WORKSPACE}/zmk"
-            git config user.name "${GITHUB_ACTOR}"
-            git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-            git fetch --unshallow
-            for merge in $merges
-            do
-              user=`echo "$merge" | cut -f 1 -d '/'`
-              repo=`echo "$merge" | cut -f 2 -d '/'`
-              branch=`echo "$merge" | cut -f 3- -d '/'`
-              remote="$user-$repo"
-              git remote add "$remote" "https://github.com/$user/$repo.git"
-              git fetch "$remote" "$branch"
-              git merge "$remote/$branch"
-              git remote remove "$remote"
-              git status
-            done
-          fi
-          echo "::endgroup::"
-
-          echo "::group::modules"
-          for module in $modules
-          do
-            user=`echo "$module" | cut -f 1 -d '/'`
-            repo=`echo "$module" | cut -f 2 -d '/'`
-            branch=`echo "$module" | cut -f 3- -d '/'`
-            module_dir="${GITHUB_WORKSPACE}/modules/$user-$repo-"`echo "$branch" | tr '/' '_'`
-            if [ ! -d "$module_dir" ]
-            then
-              git clone -b "$branch" --depth 1 "https://github.com/$user/$repo.git" "$module_dir"
-              if [ -z "$module_dirs" ]
-              then
-                module_dirs="$module_dir;"
-              else
-                module_dirs="$module_dirs;$module_dir;"
-              fi
-            fi
-          done
-          if [ -n "$module_dirs" ]
-          then
-            modules_arg="-DZMK_EXTRA_MODULES=\"$module_dirs\""
-            echo "modules_arg=$modules_arg" >> $GITHUB_OUTPUT
-          fi
-          echo "::endgroup::"
+      # Works out the build and fetches what it needs: outboards, ZMK and modules.
+      - name: prepare
+        id: prepare
+        run: python3 miryoku_zmk/.github/workflows/scripts/miryoku_build.py prepare
       - name: cache
-        if: true
         uses: actions/cache@v5
         with:
           path: |
@@ -427,90 +131,14 @@ jobs:
           key: zephyr ${{ runner.os }} ${{ hashFiles('zmk/app/west.yml') }}
         timeout-minutes: 2
         continue-on-error: true
+      # Runs west and leaves the firmware in the artifact directory.
       - name: build
-        run: |
-          if [ "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' ]
-          then
-            set -x
-            #west_debug='-v'
-            #west_build_debug='-t rom_report -t ram_report'
-          fi
-
-          echo "::group::setup"
-          cd "${GITHUB_WORKSPACE}/zmk"
-          west $west_debug init -l app
-          west $west_debug update
-          west $west_debug zephyr-export
-          echo "::endgroup::"
-
-          echo "::group::build"
-          log='build.log'
-          build_failed_message='::error::Build failed with exit code'
-          EX_UNAVAILABLE='69'
-          EX_DATAERR='65'
-          cd "${GITHUB_WORKSPACE}/zmk/app"
-          {
-            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} ${{ steps.main.outputs.dts_flags_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" ${{ inputs.cmake_args }} ||
-            echo "$build_failed_message $?." ;
-          } 2>&1 | tee "$log"
-          if grep -q 'Invalid BOARD; see above.' "$log"
-          then
-            echo '::error::Board not found. Unsupported or incorrect board.'
-            (exit "$EX_UNAVAILABLE")
-          fi
-          if grep -q 'Failed to locate keymap file!' "$log"
-          then
-            echo '::error::Keymap not found. Unsupported or incorrect keyboard.'
-            (exit "$EX_UNAVAILABLE")
-          fi
-          if grep -q 'Invalid SHIELD' "$log"
-          then
-            echo '::error::Keymap found but shield not found. Board used for shield.'
-            (exit "$EX_DATAERR")
-          fi
-          if grep -q 'Using keymap file: .*/boards/' "$log" && ! grep -q 'Using keymap file: .*/settings_reset.keymap' "$log"
-          then
-            echo '::error::Miryoku keyboard keymap not found. Unsupported or incorrect keyboard.'
-            (exit "$EX_UNAVAILABLE")
-          fi
-          if grep -q "$build_failed_message" "$log"
-          then
-            false
-          fi
-          echo "::endgroup::"
-
-          echo "::group::copy"
-          output="${{ steps.main.outputs.artifact_dir }}/${{ steps.main.outputs.artifact_name }}"
-          if grep -q '^CONFIG_BOARD_HAS_NRF5_BOOTLOADER=y' "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config"
-          then
-            # Nordic's nRF5 bootloader (the nRF52840 Dongle) takes a DFU package, not a UF2.
-            if ! command -v nrfutil > /dev/null
-            then
-              # The build image has Python for west, but no curl.
-              python3 -c 'import urllib.request; urllib.request.urlretrieve("https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-unknown-linux-gnu/nrfutil", "/usr/local/bin/nrfutil")'
-              chmod +x /usr/local/bin/nrfutil
-              nrfutil install nrf5sdk-tools
-            fi
-            cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.hex" "$output.hex"
-            nrfutil nrf5sdk-tools pkg generate --hw-version 52 --sd-req 0x00 --application-version 1 --application "$output.hex" "$output.zip"
-          else
-            for extension in 'uf2' 'bin' 'hex' 'elf'
-            do
-              file="${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.$extension"
-              if [ -f "$file" ]
-              then
-                cp "$file" "$output.$extension"
-                test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' || break
-              fi
-            done
-          fi
-          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config" "${{ steps.main.outputs.artifact_dir }}"
-          echo "::endgroup::"
+        run: python3 miryoku_zmk/.github/workflows/scripts/miryoku_build.py build
       - name: upload
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.artifact_prefix }}-${{ steps.main.outputs.artifact_name }}
-          path: ${{ steps.main.outputs.artifact_dir }}
+          name: ${{ inputs.artifact_prefix }}-${{ steps.prepare.outputs.artifact_name }}
+          path: ${{ steps.prepare.outputs.artifact_dir }}
   merge:
     runs-on: ubuntu-latest
     needs: main
