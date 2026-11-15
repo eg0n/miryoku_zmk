@@ -35,6 +35,10 @@ on:
       dts_extra_cppflags:
         type: string
         default: '["default"]'
+      custom_config:
+        description: "Lines of '#define NAME' or '#define NAME VALUE', passed on as -D flags like dts_extra_cppflags"
+        type: string
+        default: '["default"]'
       kconfig:
         type: string
         default: '["default"]'
@@ -88,6 +92,7 @@ jobs:
         layers: ${{ fromJSON(inputs.layers) }}
         mapping: ${{ fromJSON(inputs.mapping) }}
         dts_extra_cppflags: ${{ fromJSON(inputs.dts_extra_cppflags) }}
+        custom_config: ${{ fromJSON(inputs.custom_config) }}
         kconfig: ${{ fromJSON(inputs.kconfig) }}
         branches: ${{ fromJSON(inputs.branches) }}
         modules: ${{ fromJSON(inputs.modules) }}
@@ -143,6 +148,36 @@ jobs:
             run_name="$run_name dts_"`echo "${{ matrix.dts_extra_cppflags }}" | md5sum | head -c "$hash_length"`
           fi
 
+          # Parts that tell this build's outputs from the rest of the matrix: one
+          # for each input that lists more than one value (see artifact_name).
+          name_parts=""
+
+          # custom_config is the older way to pass defines: lines of "#define NAME"
+          # or "#define NAME VALUE". Each becomes a -D flag; nothing else is kept.
+          custom_config="${{ matrix.custom_config }}"
+          if [ -n "$custom_config" -a "$custom_config" != 'default' ]
+          then
+            custom_flags=`printf '%s\n' "$custom_config" | sed -n -e 's/^[[:space:]]*#define[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*$/\1/p' -e 's/^[[:space:]]*#define[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]\{1,\}\([^[:space:];]\{1,\}\)[[:space:]]*$/\1=\2/p'`
+            if [ `printf '%s\n' "$custom_config" | grep -c '[^[:space:]]'` != `printf '%s\n' "$custom_flags" | grep -c .` ]
+            then
+              echo '::warning::custom_config takes only "#define NAME" and "#define NAME VALUE" lines (no spaces in VALUE); other lines were ignored.'
+            fi
+            for flag in $custom_flags
+            do
+              dts_flags="$dts_flags;-D$flag"
+            done
+            custom_hash=`printf '%s\n' "$custom_config" | md5sum | head -c "$hash_length"`
+            run_name="$run_name custom_$custom_hash"
+            if [ '${{ fromJSON(inputs.custom_config)[1] != null }}' = 'true' ]
+            then
+              name_parts="$name_parts custom_$custom_hash"
+            fi
+          fi
+          if [ '${{ fromJSON(inputs.dts_extra_cppflags)[1] != null }}' = 'true' ]
+          then
+            name_parts="$name_parts dts_"`echo "${{ matrix.dts_extra_cppflags }}" | md5sum | head -c "$hash_length"`
+          fi
+
           for option in "alphas_${{ matrix.alphas }}" "extra_${{ matrix.extra }}" "tap_${{ matrix.tap }}" "nav_${{ matrix.nav }}" "clipboard_${{ matrix.clipboard }}" "layers_${{ matrix.layers }}" "mapping_${{ matrix.mapping }}"
           do
             case "$option" in
@@ -153,6 +188,12 @@ jobs:
                 flag="-DMIRYOKU_"`echo "$option" | tr 'a-z' 'A-Z'`
                 dts_flags="$dts_flags;$flag"
                 ;;
+            esac
+          done
+          for option in "${{ fromJSON(inputs.alphas)[1] != null }} alphas_${{ matrix.alphas }}" "${{ fromJSON(inputs.extra)[1] != null }} extra_${{ matrix.extra }}" "${{ fromJSON(inputs.tap)[1] != null }} tap_${{ matrix.tap }}" "${{ fromJSON(inputs.nav)[1] != null }} nav_${{ matrix.nav }}" "${{ fromJSON(inputs.clipboard)[1] != null }} clipboard_${{ matrix.clipboard }}" "${{ fromJSON(inputs.layers)[1] != null }} layers_${{ matrix.layers }}" "${{ fromJSON(inputs.mapping)[1] != null }} mapping_${{ matrix.mapping }}"
+          do
+            case "$option" in
+              'true '* ) name_parts="$name_parts ${option#true }" ;;
             esac
           done
 
@@ -188,24 +229,54 @@ jobs:
             run_name="$run_name kconfig_"`echo "$kconfig" | md5sum | head -c "$hash_length"`
           fi
 
-          # Name outputs after the shield, plus the variant label when there is one.
-          artifact_name="${{ matrix.shield }}"
-          if [ -n "$variant" ]
+          if [ -z "$variant" -a '${{ fromJSON(inputs.kconfig)[1] != null }}' = 'true' ]
           then
-            artifact_name="$artifact_name-$variant"
+            name_parts="$name_parts kconfig_"`echo "$kconfig" | md5sum | head -c "$hash_length"`
           fi
-          echo "artifact_name=$artifact_name" >> $GITHUB_OUTPUT
 
           if [ -n "${{ matrix.branches }}" -a "${{ matrix.branches }}" != 'default' ]
           then
             run_name="$run_name branches_"`echo "${{ matrix.branches }}" | md5sum | head -c "$hash_length"`
             branches="${{ matrix.branches }}"
           fi
+          if [ '${{ fromJSON(inputs.branches)[1] != null }}' = 'true' ]
+          then
+            name_parts="$name_parts branches_"`echo "${{ matrix.branches }}" | md5sum | head -c "$hash_length"`
+          fi
           if [ -n "${{ matrix.modules }}" -a "${{ matrix.modules }}" != 'default' ]
           then
             run_name="$run_name modules_"`echo "${{ matrix.modules }}" | md5sum | head -c "$hash_length"`
             modules="${{ matrix.modules }}"
           fi
+          if [ '${{ fromJSON(inputs.modules)[1] != null }}' = 'true' ]
+          then
+            name_parts="$name_parts modules_"`echo "${{ matrix.modules }}" | md5sum | head -c "$hash_length"`
+          fi
+
+          # Name outputs after the shield (the board when there is none), plus the
+          # variant label when there is one. Every matrix job uploads its own
+          # artifact, so each input that lists several values adds its part too.
+          if [ -n "$shield" ]
+          then
+            artifact_name="${{ matrix.shield }}"
+            if [ '${{ fromJSON(inputs.board)[1] != null }}' = 'true' ]
+            then
+              artifact_name="$artifact_name-${{ matrix.board }}"
+            fi
+          else
+            artifact_name="${{ matrix.board }}"
+          fi
+          if [ -n "$variant" ]
+          then
+            artifact_name="$artifact_name-$variant"
+          fi
+          for part in $name_parts
+          do
+            artifact_name="$artifact_name-$part"
+          done
+          # Characters an artifact name can't hold, as in a board like nice_nano/nrf52840/zmk.
+          artifact_name=$(printf '%s' "$artifact_name" | tr '/:*?"<>|\\' '_')
+          echo "artifact_name=$artifact_name" >> $GITHUB_OUTPUT
 
           run_name=`echo $run_name | tr ' ' '-'`
           echo "run_name=$run_name" >> $GITHUB_OUTPUT
@@ -225,6 +296,7 @@ jobs:
           layers: '${{ matrix.layers }}'
           mapping: '${{ matrix.mapping }}'
           dts_extra_cppflags: '${{ matrix.dts_extra_cppflags }}'
+          custom_config: '${{ matrix.custom_config }}'
           kconfig: '${{ matrix.kconfig }}'
           branches: '${{ matrix.branches }}'
           modules: '${{ matrix.modules }}'
