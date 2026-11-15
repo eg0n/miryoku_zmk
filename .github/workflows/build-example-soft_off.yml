@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/main.yml
     secrets: inherit
     with:
-      board: '["nice_nano"]'
+      board: '["nice_nano//zmk"]'
       shield: '["corne_left nice_view_adapter nice_view","corne_right nice_view_adapter nice_view"]'
       custom_config: '["#define MIRYOKU_KLUDGE_SOFT_OFF"]'
       kconfig: '["CONFIG_ZMK_PM_SOFT_OFF=y"]'
