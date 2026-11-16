@@ -146,6 +146,13 @@ def parse_outboard(text):
     return settings
 
 
+def module_variable(ref):
+    """The variable cmake_args can use for a module's checkout, named after its repository:
+    eg0n/zmk-split-esb/main is ${MIRYOKU_MODULE_ZMK_SPLIT_ESB}."""
+    _, _, repo, _ = parse_ref(ref)
+    return "MIRYOKU_MODULE_" + re.sub(r"[^A-Za-z0-9]", "_", repo).upper()
+
+
 def parse_ref(ref):
     """ "user/repo/branch" (the branch may hold more slashes) as (url, user, repo, branch)."""
     user, repo, branch = ref.split("/", 2)
@@ -244,14 +251,14 @@ def fetch_zmk(branches):
 
 
 def fetch_modules(modules):
-    """Clones each module once. Returns their directories."""
-    directories = []
+    """Clones each module once. Returns {module ref: directory}."""
+    directories = {}
     for module in modules:
         url, user, repo, branch = parse_ref(module)
         directory = WORKSPACE / "modules" / f"{user}-{repo}-{branch.replace('/', '_')}"
-        if directory not in directories:
+        if directory not in directories.values():
             clone(url, branch, directory)
-            directories.append(directory)
+            directories[module] = directory
     return directories
 
 
@@ -298,11 +305,16 @@ def prepare():
 
     cmake_args = [f"-DSHIELD={shield}"] if shield else []
     if module_dirs:
-        cmake_args.append("-DZMK_EXTRA_MODULES=" + ";".join(map(str, module_dirs)))
+        cmake_args.append("-DZMK_EXTRA_MODULES=" + ";".join(map(str, module_dirs.values())))
     cmake_args += [f"-DDTS_EXTRA_CPPFLAGS={flags}", f"-DZMK_CONFIG={CONFIG_DIR}"]
 
+    # What cmake_args can refer to: the keyboard, and each module's checkout.
+    variables = {"MIRYOKU_KEYBOARD": keyboard}
+    variables.update({module_variable(ref): str(directory) for ref, directory in module_dirs.items()})
+    print("cmake_args variables:\n" + "".join(f"  {key}={text}\n" for key, text in variables.items()), end="")
+
     STATE_FILE.write_text(
-        json.dumps({"board": board, "keyboard": keyboard, "cmake_args": cmake_args, "artifact_name": name})
+        json.dumps({"board": board, "variables": variables, "cmake_args": cmake_args, "artifact_name": name})
     )
     set_output("artifact_dir", ARTIFACT_DIR)
     set_output("artifact_name", name)
@@ -362,9 +374,9 @@ def collect_firmware(name):
 
 def build():
     state = json.loads(STATE_FILE.read_text())
-    # The keyboard's name is there for cmake_args to use, e.g. in a per-half conf file's path.
-    os.environ["MIRYOKU_KEYBOARD"] = state["keyboard"]
-    # cmake_args is written as on a command line: variables are expanded, quotes group words.
+    # cmake_args is written as on a command line: variables, such as ${MIRYOKU_KEYBOARD} and
+    # ${MIRYOKU_MODULE_<REPO>}, are expanded, and quotes group words.
+    os.environ.update(state["variables"])
     extra_args = shlex.split(os.path.expandvars(os.environ.get("CMAKE_ARGS", "")))
 
     with group("setup"):

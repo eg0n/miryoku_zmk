@@ -1,16 +1,112 @@
 name: "Build Adam's Totem"
 on: workflow_dispatch
+# The Totem split over ESB (eg0n/zmk-split-esb): both halves, both dongles (a Nordic
+# nRF52840 Dongle, and a XIAO with a Prospector screen), the settings resets, and the
+# KeyBeacon Mac app, in one archive. Each part's ESB settings come from the module's
+# conf/, which its local scripts/build.sh uses too. Power only one dongle at a time.
 jobs:
-  build:
-    uses: ./.github/workflows/main.yml
+  halves:
+    uses: ./.github/workflows/build-acb.yml
     secrets: inherit
     with:
       board: '["xiao_ble//zmk"]'
-      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter", "settings_reset"]'
-      alphas: '["colemak"]'
-      clipboard: '["mac"]'
-      extra: '["qwerty"]'
-      tap: '["colemak"]'
-      branches: '["zmkfirmware/zmk/main"]'
-      modules: '["caksoylar/zmk-rgbled-widget/main"]'
+      shield: '["totem_left rgbled_adapter", "totem_right rgbled_adapter"]'
+      # Our rgbled-widget fork blinks the ESB link status on the halves.
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      cmake_args: '-DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/${MIRYOKU_KEYBOARD}.conf'
+      artifact_prefix: 'acb-totem-halves'
+      merge: false
+
+  # A .hex and a DFU .zip for the dongle's Nordic bootloader. Raytac's clone needs
+  # config/nrf52840dongle.overlay, which ZMK applies to this board. It reports the
+  # keyboard to the KeyBeacon Mac app over USB (totem_nrfdongle.conf), and runs ZMK
+  # with the rolling WPM and the caps-word event that KeyBeacon reads.
+  nrfdongle:
+    uses: ./.github/workflows/build-acb.yml
+    secrets: inherit
+    with:
+      board: '["nrf52840dongle//zmk"]'
+      shield: '["totem_dongle"]'
+      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/zmk-keybeacon/feat/dongle-usb"]'
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
+      # Quoted: the two conf files are a ;-separated list.
+      cmake_args: >-
+        "-DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.conf;${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_nrfdongle.conf"
+        -DEXTRA_DTC_OVERLAY_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.overlay
+      artifact_prefix: 'acb-totem-nrfdongle'
+      merge: false
+
+  # One image per Prospector screen layout. The kconfig entries' "label|" names
+  # each output. Our ZMK branches define the caps-word event, so Prospector's own
+  # copy is turned off.
+  prospector:
+    uses: ./.github/workflows/build-acb.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk"]'
+      shield: '["totem_dongle prospector_adapter"]'
+      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
+      # Our Prospector fork: carrefinho's new-status-screens plus &bl BL_TOG screen-off,
+      # the Crystal layout, peripheral status fixes and zmk-split-esb support.
+      modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/prospector-zmk-module/feat/esb-split"]'
+      # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, to turn the screen off.
+      dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'
+      kconfig: '[
+        "classic|CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y",
+        "radii|CONFIG_PROSPECTOR_STATUS_SCREEN_RADII=y",
+        "field|CONFIG_PROSPECTOR_STATUS_SCREEN_FIELD=y",
+        "operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y",
+        "crystal|CONFIG_PROSPECTOR_STATUS_SCREEN_CRYSTAL=y"
+        ]'
+      cmake_args: >-
+        -DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.conf
+        -DEXTRA_DTC_OVERLAY_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.overlay
+        -DCONFIG_PROSPECTOR_PROVIDE_CAPS_WORD_EVENT=n
+      artifact_prefix: 'acb-totem-prospector'
+      merge: false
+
+  # A settings reset for each board: the XIAO's is a .uf2, the nRF dongle's a .hex and .zip.
+  reset:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      board: '["xiao_ble//zmk", "nrf52840dongle//zmk"]'
+      shield: '["settings_reset"]'
+      branches: '["zmkfirmware/zmk/main"]'
+      artifact_prefix: 'acb-totem-reset'
+      merge: false
+
+  # The KeyBeacon menu-bar app that shows the nRF dongle's reports: tested, then packaged
+  # as a .dmg and .zip (ad-hoc signed: open it with right-click → Open the first time).
+  app:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: eg0n/keybeacon
+          ref: feat/usb-hid
+      - name: Test
+        working-directory: app/macos
+        run: swift test
+      - name: Package
+        run: bash packaging/make-app.sh "$(git rev-parse --short HEAD)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acb-totem-app
+          path: |
+            dist/*.dmg
+            dist/*.zip
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: [halves, nrfdongle, prospector, reset, app]
+    name: Merge Output Artifacts
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v7
+        with:
+          name: firmware-totem
+          pattern: acb-totem-*
+          delete-merged: true

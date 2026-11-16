@@ -3,6 +3,8 @@
 """Tests for miryoku_build.py: python3 -m unittest discover .github/workflows/scripts"""
 
 import json
+import os
+import shlex
 import unittest
 from pathlib import Path
 
@@ -150,6 +152,21 @@ class Refs(unittest.TestCase):
         self.assertEqual(
             mb.parse_ref("eg0n/zmk/feat/wpm-rolling"),
             ("https://github.com/eg0n/zmk.git", "eg0n", "zmk", "feat/wpm-rolling"),
+        )
+
+
+class ModuleVariable(unittest.TestCase):
+    def test_named_after_the_repository(self):
+        self.assertEqual(mb.module_variable("eg0n/zmk-split-esb/main"), "MIRYOKU_MODULE_ZMK_SPLIT_ESB")
+        self.assertEqual(
+            mb.module_variable("eg0n/prospector-zmk-module/feat/esb-split"), "MIRYOKU_MODULE_PROSPECTOR_ZMK_MODULE"
+        )
+
+    def test_expands_in_cmake_args(self):
+        os.environ.update({"MIRYOKU_MODULE_ZMK_SPLIT_ESB": "/w/esb", "MIRYOKU_KEYBOARD": "totem_left"})
+        args = '"-DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/${MIRYOKU_KEYBOARD}.conf;/w/x.conf" -DA=1'
+        self.assertEqual(
+            shlex.split(os.path.expandvars(args)), ["-DEXTRA_CONF_FILE=/w/esb/conf/totem_left.conf;/w/x.conf", "-DA=1"]
         )
 
 

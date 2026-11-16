@@ -1,0 +1,58 @@
+# Adam's Miryoku settings, in one place: main.yml with Colemak alphas and tap layer,
+# QWERTY as the extra layer and Mac clipboard keys, on upstream ZMK unless branches says
+# otherwise. Each keyboard's workflow calls this with what differs: board, shield, modules...
+# The inputs are as for main.yml.
+
+name: "Build Adam's Miryoku"
+on:
+  workflow_call:
+    inputs:
+      board:
+        type: string
+        required: true
+      shield:
+        type: string
+        default: '["default"]'
+      branches:
+        type: string
+        default: '["zmkfirmware/zmk/main"]'
+      modules:
+        type: string
+        default: '["default"]'
+      dts_extra_cppflags:
+        type: string
+        default: '["default"]'
+      kconfig:
+        type: string
+        default: '["default"]'
+      cmake_args:
+        type: string
+        default: ''
+      artifact_prefix:
+        type: string
+        default: 'artifact'
+      archive_name:
+        type: string
+        default: 'firmware'
+      merge:
+        type: boolean
+        default: true
+jobs:
+  build:
+    uses: ./.github/workflows/main.yml
+    secrets: inherit
+    with:
+      alphas: '["colemak"]'
+      extra: '["qwerty"]'
+      tap: '["colemak"]'
+      clipboard: '["mac"]'
+      board: ${{ inputs.board }}
+      shield: ${{ inputs.shield }}
+      branches: ${{ inputs.branches }}
+      modules: ${{ inputs.modules }}
+      dts_extra_cppflags: ${{ inputs.dts_extra_cppflags }}
+      kconfig: ${{ inputs.kconfig }}
+      cmake_args: ${{ inputs.cmake_args }}
+      artifact_prefix: ${{ inputs.artifact_prefix }}
+      archive_name: ${{ inputs.archive_name }}
+      merge: ${{ inputs.merge }}

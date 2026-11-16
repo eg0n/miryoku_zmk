@@ -78,7 +78,7 @@ on:
         required: false
         type: string
       cmake_args:
-        description: "Extra CMake arguments for every build, written as on a command line, e.g. -DEXTRA_CONF_FILE=... from a module's checkout under ${GITHUB_WORKSPACE}/modules. ${MIRYOKU_KEYBOARD} is the build's first shield (or its board), e.g. totem_left."
+        description: "Extra CMake arguments for every build, written as on a command line. ${MIRYOKU_KEYBOARD} is the build's first shield (or its board), e.g. totem_left, and ${MIRYOKU_MODULE_<REPO>} a module's checkout, e.g. -DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/${MIRYOKU_KEYBOARD}.conf."
         default: ""
         required: false
         type: string
