@@ -8,13 +8,15 @@ if SHIELD_TOTEM_DONGLE
 config ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS
     default 2
 
-# Set this to ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS + your desired number of BT profiles (default is 5)
+# ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS + the number of BT profiles: ZMK makes
+# BT_MAX_PAIRED - peripherals of them, so 2 + 4 gives the 4 profiles that
+# Miryoku's media layer has keys for (u_bt_sel_0 to 3).
 config BT_MAX_CONN
-    default 7
+    default 6
 
 # Set this to the same number as BT_MAX_CONN
 config BT_MAX_PAIRED
-    default 7
+    default 6
 
 config ZMK_KEYBOARD_NAME
     default "TOTEM"
