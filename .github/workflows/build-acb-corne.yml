@@ -11,8 +11,6 @@ jobs:
     with:
       board: '["nice_nano//zmk"]'
       shield: '["corne_left nice_view_adapter nice_view_gem","corne_right nice_view_adapter nice_view_gem"]'
-      # Rolling WPM, for a smooth WPM gauge and graph.
-      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling"]'
       # Our nice-view-gem fork shows the right half's link and battery on the left.
       modules: '["eg0n/zmk-split-esb/main eg0n/nice-view-gem/feat/esb-split"]'
       # Quoted: the two conf files are a ;-separated list.

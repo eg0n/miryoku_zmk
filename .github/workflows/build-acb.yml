@@ -1,7 +1,8 @@
 # Adam's Miryoku settings, in one place: main.yml with Colemak alphas and tap layer,
-# QWERTY as the extra layer and Mac clipboard keys, on upstream ZMK unless branches says
-# otherwise. Each keyboard's workflow calls this with what differs: board, shield, modules...
-# The inputs are as for main.yml.
+# QWERTY as the extra layer and Mac clipboard keys, on Adam's ZMK, eg0n/zmk int/totem-esb
+# (upstream main with rolling WPM and a caps-word event merged in; local builds use the same
+# branch), unless branches says otherwise. Each keyboard's workflow calls this with what
+# differs: board, shield, modules... The inputs are as for main.yml.
 
 name: "Build Adam's Miryoku"
 on:
@@ -15,7 +16,7 @@ on:
         default: '["default"]'
       branches:
         type: string
-        default: '["zmkfirmware/zmk/main"]'
+        default: '["eg0n/zmk/int/totem-esb"]'
       modules:
         type: string
         default: '["default"]'

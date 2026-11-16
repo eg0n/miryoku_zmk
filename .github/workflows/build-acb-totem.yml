@@ -20,15 +20,14 @@ jobs:
 
   # A .hex and a DFU .zip for the dongle's Nordic bootloader. Raytac's clone needs
   # config/nrf52840dongle.overlay, which ZMK applies to this board. It reports the
-  # keyboard to the KeyBeacon Mac app over USB (totem_nrfdongle.conf), and runs ZMK
-  # with the rolling WPM and the caps-word event that KeyBeacon reads.
+  # keyboard to the KeyBeacon Mac app over USB (totem_nrfdongle.conf), with the rolling
+  # WPM and caps-word event that build-acb.yml's ZMK branch brings.
   nrfdongle:
     uses: ./.github/workflows/build-acb.yml
     secrets: inherit
     with:
       board: '["nrf52840dongle//zmk"]'
       shield: '["totem_dongle"]'
-      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
       modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/zmk-keybeacon/feat/dongle-usb"]'
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS"]'
       # Quoted: the two conf files are a ;-separated list.
@@ -47,7 +46,6 @@ jobs:
     with:
       board: '["xiao_ble//zmk"]'
       shield: '["totem_dongle prospector_adapter"]'
-      branches: '["zmkfirmware/zmk/main eg0n/zmk/feat/wpm-rolling eg0n/zmk/feat/caps-word-event"]'
       # Our Prospector fork: carrefinho's new-status-screens plus &bl BL_TOG screen-off,
       # the Crystal layout, peripheral status fixes and zmk-split-esb support.
       modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/prospector-zmk-module/feat/esb-split"]'
@@ -74,7 +72,7 @@ jobs:
     with:
       board: '["xiao_ble//zmk", "nrf52840dongle//zmk"]'
       shield: '["settings_reset"]'
-      branches: '["zmkfirmware/zmk/main"]'
+      branches: '["eg0n/zmk/int/totem-esb"]'
       artifact_prefix: 'acb-totem-reset'
       merge: false
 
