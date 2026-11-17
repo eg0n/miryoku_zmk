@@ -1,9 +1,10 @@
 name: "Build Adam's Totem"
 on: workflow_dispatch
 # The Totem split over ESB (eg0n/zmk-split-esb): both halves, both dongles (a Nordic
-# nRF52840 Dongle, and a XIAO with a Prospector screen), the settings resets, and the
-# KeyBeacon Mac app, in one archive. Each part's ESB settings come from the module's
-# conf/, which its local scripts/build.sh uses too. Power only one dongle at a time.
+# nRF52840 Dongle, and a XIAO with a Prospector screen) and the settings resets, in one
+# archive. Each part's ESB settings come from the module's conf/, which its local
+# scripts/build.sh uses too. Power only one dongle at a time. The KeyBeacon Mac app for
+# the nRF dongle is built by eg0n/keybeacon's own CI (its BleWidget artifact).
 jobs:
   halves:
     uses: ./.github/workflows/build-acb.yml
@@ -37,8 +38,9 @@ jobs:
       artifact_prefix: 'acb-totem-nrfdongle'
       merge: false
 
-  # One image per Prospector screen layout. The kconfig entries' "label|" names
-  # each output. Our ZMK branches define the caps-word event, so Prospector's own
+  # One image per Prospector screen layout in use; the others are classic, radii, field
+  # and crystal (CONFIG_PROSPECTOR_STATUS_SCREEN_<NAME>=y). The kconfig entries' "label|"
+  # names each output. Our ZMK branches define the caps-word event, so Prospector's own
   # copy is turned off.
   prospector:
     uses: ./.github/workflows/build-acb.yml
@@ -51,13 +53,7 @@ jobs:
       modules: '["eg0n/zmk-split-esb/main eg0n/zmk-rgbled-widget/feat/esb-split eg0n/prospector-zmk-module/feat/esb-split"]'
       # BACKLIGHT_BEHAVIORS binds &bl BL_TOG on the MEDIA layer, to turn the screen off.
       dts_extra_cppflags: '["MIRYOKU_KLUDGE_GLOBALSHIFTFUNCTIONS RGBLED_WIDGET_BEHAVIORS BACKLIGHT_BEHAVIORS"]'
-      kconfig: '[
-        "classic|CONFIG_PROSPECTOR_STATUS_SCREEN_CLASSIC=y",
-        "radii|CONFIG_PROSPECTOR_STATUS_SCREEN_RADII=y",
-        "field|CONFIG_PROSPECTOR_STATUS_SCREEN_FIELD=y",
-        "operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y",
-        "crystal|CONFIG_PROSPECTOR_STATUS_SCREEN_CRYSTAL=y"
-        ]'
+      kconfig: '["operator|CONFIG_PROSPECTOR_STATUS_SCREEN_OPERATOR=y"]'
       cmake_args: >-
         -DEXTRA_CONF_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.conf
         -DEXTRA_DTC_OVERLAY_FILE=${MIRYOKU_MODULE_ZMK_SPLIT_ESB}/conf/totem_dongle.overlay
@@ -76,30 +72,9 @@ jobs:
       artifact_prefix: 'acb-totem-reset'
       merge: false
 
-  # The KeyBeacon menu-bar app that shows the nRF dongle's reports: tested, then packaged
-  # as a .dmg and .zip (ad-hoc signed: open it with right-click → Open the first time).
-  app:
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: eg0n/keybeacon
-          ref: feat/usb-hid
-      - name: Test
-        working-directory: app/macos
-        run: swift test
-      - name: Package
-        run: bash packaging/make-app.sh "$(git rev-parse --short HEAD)"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: acb-totem-app
-          path: |
-            dist/*.dmg
-            dist/*.zip
-
   merge:
     runs-on: ubuntu-latest
-    needs: [halves, nrfdongle, prospector, reset, app]
+    needs: [halves, nrfdongle, prospector, reset]
     name: Merge Output Artifacts
     steps:
       - name: Merge Artifacts
